@@ -30,6 +30,7 @@
 
 #define PORT 8000
 
+/* These will later need to be sent via the requesting server */
 #define REQ_DN_C "US"
 #define REQ_DN_ST "MI"
 #define REQ_DN_L ""
@@ -41,9 +42,12 @@
 #define RETURN_ERR(err, s) if ((err) == -1) { perror(s); exit(1); }
 #define RETURN_SSL(err) if ((err) == -1) { ERR_print_errors_fp(stderr); exit(1); }
 
+/* This will be used for testing */
+char csa[] = "ADD THE CERTIFICATE REQUEST HERE";
+
 static void cleanup(void);
 static void cty_to_pem(X509 *crt, uint8_t **crt_bytes, size_t *crt_size);
-static int generate_key_csr(EVP_PKEY **key, X509_REQ **req);
+static int generate_csr(EVP_PKEY **key, X509_REQ **req);
 static int generate_set_random_serial(X509 *crt);
 static int generate_signed_key_pair(EVP_PKEY *ca_key, X509 *ca_crt, EVP_PKEY **key, X509 **crt);
 static void initialize(void);
@@ -51,6 +55,56 @@ static void key_to_pem(EVP_PKEY *key, uint8_t **key_bytes, size_t *key_size);
 static int load_ca(const char *ca_key_path, EVP_PKEY **ca_key, const char *ca_crt_path, X509 **ca_crt);
 static void print_bytes(uint8_t *data, size_t size);
 static int server_loop(int port);
+static void usage();
+
+
+/**
+ * Creates a new Certificate Signing Request
+ * Which allows for the creation of a new
+ * certificate on the CA server. 
+ *
+ *
+ * This will be referenced whenever the associated
+ * server tries to connect to the organization's network.
+ * It will allow for the CA to validate the certificate
+ * against what is saved, and allow or deny access.
+ *
+ * @return int
+ */ 
+int generate_csr(EVP_PKEY **key, X509_REQ **req) {
+	/* Allocate an empty EVP_PKEY structure inside of key */
+	*key = EVP_PKEY_new();
+	if (!*key) goto err;
+
+	/* Generate X509 typed object inside of req */
+	*req = X509_REQ_new();
+	if (!*req) goto err;
+
+	/* Generate the RSA key */
+	RSA *rsa = RSA_generate_key(RSA_KEY_BITS, RSA_F4, NULL, NULL);
+	if (!EVP_PKEY_assign_RSA(*key, rsa)) goto err;
+
+	X509_REQ_set_pubkey(*req, *key);
+
+	/* Set DN and other info for the CSA */
+	X509_NAME *name = X509_REQ_get_subject_name(*req);
+	X509_NAME_add_entry_by_txt(name, "C", MBSTRING_ASC, (const unsigned char*)REQ_DN_C, -1, -1, 0);
+	X509_NAME_add_entry_by_txt(name, "ST", MBSTRING_ASC, (const unsigned char*)REQ_DN_ST, -1, -1, 0);
+	X509_NAME_add_entry_by_txt(name, "L", MBSTRING_ASC, (const unsigned char*)REQ_DN_L, -1, -1, 0);
+	X509_NAME_add_entry_by_txt(name, "O", MBSTRING_ASC, (const unsigned char*)REQ_DN_O, -1, -1, 0);
+	X509_NAME_add_entry_by_txt(name, "OU", MBSTRING_ASC, (const unsigned char*)REQ_DN_OU, -1, -1, 0);
+	X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_ASC, (const unsigned char*)REQ_DN_CN, -1, -1, 0);
+
+	/* Self-sign the request to prove we have the key */
+	if (!X509_REQ_sign(*req, *key, EVP_sha256())) goto err;
+	return 1;
+
+/* Error handler */
+err:
+	EVP_PKEY_free(*key);
+	X509_REQ_free(*req);
+	return 0;
+}
 
 /**
  * Initializes the openssl functions
@@ -151,6 +205,14 @@ void print_bytes(uint8_t* data, size_t size) {
 	for (size_t i = 0; i < size; i++) {
 		printf("%s", data[i]);
 	}
+}
+
+int generate_signed_key_pair(EVP_PKEY *ca_key, X509 *ca_crt, EVP_PKEY **key, X509 **crt) {
+	
+}
+
+void usage() {
+	
 }
 
 int main(int argc, char **argv) {
