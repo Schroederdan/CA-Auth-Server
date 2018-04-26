@@ -7,11 +7,16 @@ This code does the following:
 - Generate a private RSA key.
 - Generate a Certificate Signing Request (CSA)
 - Sign the request using the generated CA certificate.
-3. The program will then send the generated private key and signed certificate in PEM format, and it will also store it in the servers memory for use with later requests.
+3. The program will then send the generated private key and signed certificate in PEM format, and it will also store it in the servers database for use with later requests.
+
+This code will be wrapped by a Rust-based HTTP service in which it can handle requests very quickly, and with memory-safe concurrency. This will allow for the CA server to handle requsts on many threads very quickly.
 
 ## Compiling
 ### Requirements
 - OpenSSL
+- Rust Nightly
+- Diesel CLI >= 1.1.0
+- Docker
 
 ### Instructions
-- Coming soon...
+Much of this system will utilize docker to make things a lot neater. Instructions coming soon when that code has been scaffolded.
