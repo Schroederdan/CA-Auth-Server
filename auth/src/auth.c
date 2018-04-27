@@ -1,22 +1,20 @@
+/**
+ * Copyright 2018-present, Grand Valley State University
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <errno.h>
-#include <netdb.h>
-#include <unistd.h>
-
-#ifdef __VMS
-#include <types.h>
-#include <socket.h>
-#include <in.h>
-#include <inet.h>
-
-#else
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#endif
 
 #include <openssl/crypto.h> // Crypto lib
 #include <openssl/ssl.h>
@@ -24,11 +22,7 @@
 #include <openssl/x509v3.h> // The crypto algorithm
 #include <openssl/pem.h> // The public cert format
 
-#define RSA_SERVER_CERT "server.crt"
-#define RSA_SERVER_KEY  "server.key"
 #define RSA_KEY_BITS (4096)
-
-#define PORT 8000
 
 /* These will later need to be sent via the requesting server */
 #define REQ_DN_C "US"
@@ -38,25 +32,30 @@
 #define REQ_DN_OU "IT"
 #define REQ_DN_CN "www.gvsu.edu"
 
-#define RETURN_NULL(x) if ((x) == NULL) exit(1)
-#define RETURN_ERR(err, s) if ((err) == -1) { perror(s); exit(1); }
-#define RETURN_SSL(err) if ((err) == -1) { ERR_print_errors_fp(stderr); exit(1); }
-
-/* This will be used for testing */
-char csa[] = "ADD THE CERTIFICATE REQUEST HERE";
-
 static void cleanup(void);
 static void cty_to_pem(X509 *crt, uint8_t **crt_bytes, size_t *crt_size);
-static int generate_csr(EVP_PKEY **key, X509_REQ **req);
+static int generate_key_csr(EVP_PKEY **key, X509_REQ **req);
 static int generate_set_random_serial(X509 *crt);
 static int generate_signed_key_pair(EVP_PKEY *ca_key, X509 *ca_crt, EVP_PKEY **key, X509 **crt);
 static void initialize(void);
 static void key_to_pem(EVP_PKEY *key, uint8_t **key_bytes, size_t *key_size);
 static int load_ca(const char *ca_key_path, EVP_PKEY **ca_key, const char *ca_crt_path, X509 **ca_crt);
 static void print_bytes(uint8_t *data, size_t size);
-static int server_loop(int port);
-static void usage();
 
+/**
+ * Generates a new 20-byte random serial number
+ *
+ * This 20-byte value will be able to uniquely
+ * identify the certificate when issued by the
+ * CA server.
+ *
+ * This will be used to check and see if a certificate
+ * for a given server requesting authentication
+ * exists.
+ */
+int generate_set_random_serial(X509 *crt) {
+	
+}
 
 /**
  * Creates a new Certificate Signing Request
@@ -71,7 +70,7 @@ static void usage();
  *
  * @return int
  */ 
-int generate_csr(EVP_PKEY **key, X509_REQ **req) {
+int generate_key_csr(EVP_PKEY **key, X509_REQ **req) {
 	/* Allocate an empty EVP_PKEY structure inside of key */
 	*key = EVP_PKEY_new();
 	if (!*key) goto err;
@@ -200,7 +199,9 @@ err:
 	EVP_PKEY_free(*ca_key);
 	return 0;
 }
-
+/**
+ * Prints the data into a byte stream
+ */
 void print_bytes(uint8_t* data, size_t size) {
 	for (size_t i = 0; i < size; i++) {
 		printf("%s", data[i]);
@@ -208,11 +209,27 @@ void print_bytes(uint8_t* data, size_t size) {
 }
 
 int generate_signed_key_pair(EVP_PKEY *ca_key, X509 *ca_crt, EVP_PKEY **key, X509 **crt) {
-	
-}
 
-void usage() {
+	/* Generate the private key and corresponding CSR */
+	X509_REQ *req = NULL;	
+	if (!generate_key_csr(key, &req)) {
+		fprintf(stderr, "Failed to generate key and/or csr!\n");
+		return 0;	
+	}
+
+	/* Sign with the CA */
+	*crt = X509_new();
+	if (!*crt) goto err;
+
+	/* Set version to X509v3 */
+	X509_set_version(*crt, 2);
 	
+
+err:
+	EVP_PKEY_free(*key);
+	X509_REQ_free(*req);
+	X509_free(*crt);
+	return 0;
 }
 
 int main(int argc, char **argv) {
