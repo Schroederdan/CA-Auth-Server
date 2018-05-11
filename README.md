@@ -14,8 +14,7 @@ This code will be wrapped by a Rust-based HTTP service in which it can handle re
 ## Compiling
 ### Requirements
 - OpenSSL
-- Rust Nightly
-- Diesel CLI >= 1.1.0
+- Python 3
 - Docker
 
 ### Instructions

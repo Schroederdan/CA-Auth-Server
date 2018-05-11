@@ -33,7 +33,7 @@
 #define REQ_DN_CN "www.gvsu.edu"
 
 static void cleanup(void);
-static void cty_to_pem(X509 *crt, uint8_t **crt_bytes, size_t *crt_size);
+static void crt_to_pem(X509 *crt, uint8_t **crt_bytes, size_t *crt_size);
 static int generate_key_csr(EVP_PKEY **key, X509_REQ **req);
 static int generate_set_random_serial(X509 *crt);
 static int generate_signed_key_pair(EVP_PKEY *ca_key, X509 *ca_crt, EVP_PKEY **key, X509 **crt);
@@ -41,6 +41,7 @@ static void initialize(void);
 static void key_to_pem(EVP_PKEY *key, uint8_t **key_bytes, size_t *key_size);
 static int load_ca(const char *ca_key_path, EVP_PKEY **ca_key, const char *ca_crt_path, X509 **ca_crt);
 static void print_bytes(uint8_t *data, size_t size);
+
 
 /**
  * Generates a new 20-byte random serial number
@@ -54,7 +55,20 @@ static void print_bytes(uint8_t *data, size_t size);
  * exists.
  */
 int generate_set_random_serial(X509 *crt) {
-	
+  /* Generates a 20 byte random serial number and sets in certificate. */
+  unsigned char serial_bytes[20];
+  if (RAND_bytes(serial_bytes, sizeof(serial_bytes)) != 1) return 0;
+  serial_bytes[0] &= 0x7f; /* Ensure positive serial! */
+  BIGNUM *bn = BN_new();
+  BN_bin2bn(serial_bytes, sizeof(serial_bytes), bn);
+  ASN1_INTEGER *serial = ASN1_INTEGER_new();
+  BN_to_ASN1_INTEGER(bn, serial);
+
+  X509_set_serialNumber(crt, serial); // Set serial.
+
+  ASN1_INTEGER_free(serial);
+  BN_free(bn);
+  return 1;  
 }
 
 /**
@@ -227,13 +241,61 @@ int generate_signed_key_pair(EVP_PKEY *ca_key, X509 *ca_crt, EVP_PKEY **key, X50
 
 err:
 	EVP_PKEY_free(*key);
-	X509_REQ_free(*req);
+	X509_REQ_free(req);
 	X509_free(*crt);
 	return 0;
 }
 
 int main(int argc, char **argv) {
-	/** Load CA key and cert */
-	initialize();
+  /* Assumes the CA certificate and CA key is given as arguments. */
+  if (argc != 3) {
+    fprintf(stderr, "usage: %s <cakey> <cacert>\n", argv[0]);
+    return 1;
+  }
 
+  char *ca_key_path = argv[1];
+  char *ca_crt_path = argv[2];
+
+  /* Load CA key and cert. */
+  initialize_crypto();
+  EVP_PKEY *ca_key = NULL;
+  X509 *ca_crt = NULL;
+  if (!load_ca(ca_key_path, &ca_key, ca_crt_path, &ca_crt)) {
+    fprintf(stderr, "Failed to load CA certificate and/or key!\n");
+    return 1;
+  }
+
+  /* Generate keypair and then print it byte-by-byte for demo purposes. */
+  EVP_PKEY *key = NULL;
+  X509 *crt = NULL;
+
+  int ret = generate_signed_key_pair(ca_key, ca_crt, &key, &crt);
+  if (!ret) {
+    fprintf(stderr, "Failed to generate key pair!\n");
+    return 1;
+  }
+  /* Convert key and certificate to PEM format. */
+  uint8_t *key_bytes = NULL;
+  uint8_t *crt_bytes = NULL;
+  size_t key_size = 0;
+  size_t crt_size = 0;
+
+  key_to_pem(key, &key_bytes, &key_size);
+  crt_to_pem(crt, &crt_bytes, &crt_size);
+
+  /* Print key and certificate. */
+  print_bytes(key_bytes, key_size);
+  print_bytes(crt_bytes, crt_size);
+
+  /* Free stuff. */
+  EVP_PKEY_free(ca_key);
+  EVP_PKEY_free(key);
+  X509_free(ca_crt);
+  X509_free(crt);
+  free(key_bytes);
+  free(crt_bytes);
+
+  cleanup_crypto();
+
+  return 0;
 }
