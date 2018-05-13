@@ -5,10 +5,11 @@ import sys
 
 
 def validate_cert(cert) -> bool:
-   print('Validating certificate request')
+    print('Validating certificate request')
 
 
 def fork_connection():
+    print('Process forked with PID: {}'.format(os.getpid()))
     cmd = './auth/cert ca.key ca.pem'
     validation_process = Popen(cmd, stdout=PIPE, stderr=PIPE)
     stdout, stderr = validation_process.communicate()
@@ -34,6 +35,7 @@ def server_loop():
         print('Validating certificate request')
         client.send('Validating....')
         if fork_connection:
+            # TODO - Store the client cert to the database
             client.send('Validation successful! Closing conneciton')
             client.close()
         else:
