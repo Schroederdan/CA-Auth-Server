@@ -15,12 +15,14 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 #include <openssl/crypto.h> // Crypto lib
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <openssl/x509v3.h> // The crypto algorithm
 #include <openssl/pem.h> // The public cert format
+#include <openssl/rand.h> // Rand
 
 #define RSA_KEY_BITS (4096)
 
@@ -213,12 +215,13 @@ err:
 	EVP_PKEY_free(*ca_key);
 	return 0;
 }
+
 /**
  * Prints the data into a byte stream
  */
 void print_bytes(uint8_t* data, size_t size) {
 	for (size_t i = 0; i < size; i++) {
-		printf("%s", data[i]);
+		printf("%c", data[i]);
 	}
 }
 
@@ -257,7 +260,7 @@ int main(int argc, char **argv) {
   char *ca_crt_path = argv[2];
 
   /* Load CA key and cert. */
-  initialize_crypto();
+  initialize();
   EVP_PKEY *ca_key = NULL;
   X509 *ca_crt = NULL;
   if (!load_ca(ca_key_path, &ca_key, ca_crt_path, &ca_crt)) {
@@ -295,7 +298,7 @@ int main(int argc, char **argv) {
   free(key_bytes);
   free(crt_bytes);
 
-  cleanup_crypto();
+  cleanup();
 
   return 0;
 }

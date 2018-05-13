@@ -1,9 +1,13 @@
 LDFLAGS=-O0 -lcrypto -g -ggdb -Wall -pedantic
+CFLAGS=-std=c11 -O0 -g -ggdb -Wall -pedantic
 
 all: cert ca.pem
 
-cert: server.o
-	$(CC) -o $@ $(LDFLAGS) $^
+cert: main.o
+	gcc -o $@ $(LDFLAGS) $^
+
+%.o: %.c
+	gcc -c -o  $@ $(CFLAGS) $<
 
 clean:
 	rm -f cert *.o
