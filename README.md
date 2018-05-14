@@ -17,10 +17,10 @@ This code does the following:
 - Docker
 
 ### Instructions
-`cd auth/`
+`$ cd auth/`
 
-`make`
+`$ make`
 
-`./cert ca.key ca.pem`
+`$ ./cert ca.key ca.pem`
 
 The results should print to either stderr or stdout in the console.
