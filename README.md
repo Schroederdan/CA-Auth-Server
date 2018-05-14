@@ -17,6 +17,8 @@ This code does the following:
 - Docker
 
 ### Instructions
+`cd auth/`
+
 `make`
 
 `./cert ca.key ca.pem`
