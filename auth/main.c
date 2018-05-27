@@ -240,7 +240,7 @@ int generate_signed_key_pair(EVP_PKEY *ca_key, X509 *ca_crt, EVP_PKEY **key, X50
 
 	/* Set version to X509v3 */
 	X509_set_version(*crt, 2);
-	
+	return 1;
 
 err:
 	EVP_PKEY_free(*key);
